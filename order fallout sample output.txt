@@ -1,0 +1,114 @@
+✅ Sample JSON RCA Report Structure
+This summarizes the top 3 fallout root causes for the day:
+
+json
+Copy
+Edit
+{
+  "run_date": "2025-03-20",
+  "total_fallouts": 120,
+  "top_root_causes": [
+    {
+      "errorCode": "LEGACY_005",
+      "errorMessage": "Billing system account mismatch",
+      "crmAccountId": "CRM123",
+      "billingAccountId": "BILL999",
+      "count": 58
+    },
+    {
+      "errorCode": "LEGACY_008",
+      "errorMessage": "Address validation failure",
+      "crmAccountId": "CRM456",
+      "billingAccountId": "BILL888",
+      "count": 34
+    },
+    {
+      "errorCode": "LEGACY_002",
+      "errorMessage": "Product configuration error",
+      "crmAccountId": "CRM789",
+      "billingAccountId": "BILL777",
+      "count": 28
+    }
+  ]
+}
+✅ How to Generate this JSON in Databricks (PySpark Example)
+python
+Copy
+Edit
+from pyspark.sql.functions import col, sum as _sum
+import json
+
+# Assuming your RCA DataFrame looks like this: auto_rca_df(errorCode, errorMessage, crmAccountId, billingAccountId, count)
+top_n_rca = auto_rca_df.orderBy(col("count").desc()).limit(3)
+
+# Calculate total fallouts
+total_fallouts = auto_rca_df.agg(_sum("count").alias("total")).collect()[0]['total']
+
+# Collect top N RCA data
+top_causes = top_n_rca.collect()
+top_root_causes = []
+for row in top_causes:
+    top_root_causes.append({
+        "errorCode": row['errorCode'],
+        "errorMessage": row['errorMessage'],
+        "crmAccountId": row['crmAccountId'],
+        "billingAccountId": row['billingAccountId'],
+        "count": row['count']
+    })
+
+# Build JSON RCA report
+rca_report = {
+    "run_date": "2025-03-20",
+    "total_fallouts": total_fallouts,
+    "top_root_causes": top_root_causes
+}
+
+# Convert to JSON string
+json_report = json.dumps(rca_report, indent=4)
+print(json_report)
+✅ Sample Output:
+json
+Copy
+Edit
+{
+    "run_date": "2025-03-20",
+    "total_fallouts": 120,
+    "top_root_causes": [
+        {
+            "errorCode": "LEGACY_005",
+            "errorMessage": "Billing system account mismatch",
+            "crmAccountId": "CRM123",
+            "billingAccountId": "BILL999",
+            "count": 58
+        },
+        {
+            "errorCode": "LEGACY_008",
+            "errorMessage": "Address validation failure",
+            "crmAccountId": "CRM456",
+            "billingAccountId": "BILL888",
+            "count": 34
+        },
+        {
+            "errorCode": "LEGACY_002",
+            "errorMessage": "Product configuration error",
+            "crmAccountId": "CRM789",
+            "billingAccountId": "BILL777",
+            "count": 28
+        }
+    ]
+}
+✅ Optional Next Step: Send JSON RCA to Slack
+python
+Copy
+Edit
+slack_payload = {
+    "text": f"📊 *Daily Auto RCA Report - {rca_report['run_date']}*\n```{json_report}```"
+}
+
+requests.post(
+    "https://hooks.slack.com/services/your/slack/webhook",
+    data=json.dumps(slack_payload),
+    headers={'Content-Type': 'application/json'}
+)
+✅ This sends the formatted RCA JSON to Slack directly.
+
